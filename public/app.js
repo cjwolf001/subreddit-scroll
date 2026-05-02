@@ -284,15 +284,21 @@ function observePostVideos(postNode) {
   videoObserver.observe(postNode);
 }
 
-function loadRedditListing(subreddit, afterToken) {
+function redditListingUrl(subreddit, afterToken) {
+  const params = new URLSearchParams({
+    limit: "18",
+    raw_json: "1"
+  });
+  if (afterToken) params.set("after", afterToken);
+
+  return `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/new.json?${params}`;
+}
+
+function loadRedditJsonp(subreddit, afterToken) {
   return new Promise((resolve, reject) => {
     const callbackName = `redditJsonp_${Date.now()}_${jsonpRequestId++}`;
-    const params = new URLSearchParams({
-      limit: "18",
-      raw_json: "1",
-      jsonp: callbackName
-    });
-    if (afterToken) params.set("after", afterToken);
+    const url = new URL(redditListingUrl(subreddit, afterToken));
+    url.searchParams.set("jsonp", callbackName);
 
     const script = document.createElement("script");
     const timeout = window.setTimeout(() => {
@@ -311,7 +317,7 @@ function loadRedditListing(subreddit, afterToken) {
       resolve(payload);
     };
 
-    script.src = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/new.json?${params}`;
+    script.src = url.toString();
     script.onerror = () => {
       cleanup();
       reject(new Error("Could not load Reddit from this browser."));
@@ -319,6 +325,22 @@ function loadRedditListing(subreddit, afterToken) {
 
     document.head.append(script);
   });
+}
+
+async function loadRedditViaRelay(subreddit, afterToken) {
+  const redditUrl = redditListingUrl(subreddit, afterToken);
+  const relayUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(redditUrl)}`;
+  const response = await fetch(relayUrl);
+  if (!response.ok) throw new Error(`Reddit relay returned ${response.status}.`);
+  return response.json();
+}
+
+async function loadRedditListing(subreddit, afterToken) {
+  try {
+    return await loadRedditJsonp(subreddit, afterToken);
+  } catch {
+    return loadRedditViaRelay(subreddit, afterToken);
+  }
 }
 
 function textFallback(post) {
