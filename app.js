@@ -15,6 +15,7 @@ let reachedEnd = false;
 const fittedMedia = new Set();
 const observedVideos = new Set();
 let videoObserver;
+let jsonpRequestId = 0;
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -283,6 +284,43 @@ function observePostVideos(postNode) {
   videoObserver.observe(postNode);
 }
 
+function loadRedditListing(subreddit, afterToken) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `redditJsonp_${Date.now()}_${jsonpRequestId++}`;
+    const params = new URLSearchParams({
+      limit: "18",
+      raw_json: "1",
+      jsonp: callbackName
+    });
+    if (afterToken) params.set("after", afterToken);
+
+    const script = document.createElement("script");
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Reddit took too long to respond."));
+    }, 15000);
+
+    function cleanup() {
+      window.clearTimeout(timeout);
+      script.remove();
+      delete window[callbackName];
+    }
+
+    window[callbackName] = (payload) => {
+      cleanup();
+      resolve(payload);
+    };
+
+    script.src = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/new.json?${params}`;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Could not load Reddit from this browser."));
+    };
+
+    document.head.append(script);
+  });
+}
+
 function textFallback(post) {
   const div = document.createElement("div");
   div.className = "text-fallback";
@@ -390,18 +428,9 @@ async function loadMore() {
   loading = true;
 
   try {
-    const params = new URLSearchParams({
-      limit: "18",
-      raw_json: "1"
-    });
-    if (after) params.set("after", after);
+    const payload = await loadRedditListing(currentSubreddit, after);
 
-    const response = await fetch(`https://www.reddit.com/r/${encodeURIComponent(currentSubreddit)}/new.json?${params}`);
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload.error || "Could not load subreddit.");
-    }
+    if (payload.error) throw new Error(payload.message || payload.error);
 
     const listing = payload.data;
     const posts = listing.children.map((child) => child.data);
