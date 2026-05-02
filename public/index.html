@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subreddit Scroll</title>
+    <link rel="stylesheet" href="styles.css?v=9">
+  </head>
+  <body>
+    <main id="app">
+      <section class="search-view" id="searchView">
+        <form class="search-panel" id="subredditForm" autocomplete="off">
+          <label for="subredditInput">Subreddit</label>
+          <div class="input-row">
+            <span aria-hidden="true">r/</span>
+            <input
+              id="subredditInput"
+              name="subreddit"
+              type="text"
+              inputmode="text"
+              placeholder="interestingasfuck"
+              pattern="[A-Za-z0-9_]{2,21}"
+              required
+              autofocus
+            >
+            <button type="submit">Load</button>
+          </div>
+          <p class="status" id="status">Enter a subreddit name to start from the newest posts.</p>
+        </form>
+      </section>
+
+      <section class="feed-view is-hidden" id="feedView" aria-live="polite">
+        <header class="topbar">
+          <button class="icon-button" id="backButton" type="button" aria-label="Choose another subreddit">
+            <span aria-hidden="true">&#8592;</span>
+          </button>
+          <div>
+            <p id="feedKicker">Newest in</p>
+            <h1 id="feedTitle">r/</h1>
+          </div>
+        </header>
+        <div class="feed" id="feed"></div>
+        <div class="sentinel" id="sentinel"></div>
+      </section>
+    </main>
+
+    <template id="postTemplate">
+      <article class="post-card">
+        <div class="media-shell"></div>
+        <footer class="post-meta">
+          <a class="post-title" target="_blank" rel="noopener noreferrer"></a>
+          <div class="post-details"></div>
+        </footer>
+      </article>
+    </template>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
